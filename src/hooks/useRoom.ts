@@ -18,7 +18,7 @@ type FirebaseQuestions = Record<string, {
 }>
 
 
-type QuestuionType = {
+type QuestionType = {
   id: string;
   author: {
     name: string;
@@ -31,18 +31,25 @@ type QuestuionType = {
   likeId: string | undefined;
 }
 
+type DataBaseRoomType = {
+  questions: FirebaseQuestions;
+  title: string;
+}
+
 export function useRoom(roomId: string) {
   const { user } = useAuth();
-  const [questions, setQuestions] = useState<QuestuionType[]>([]);
+  const [questions, setQuestions] = useState<QuestionType[]>([]);
   const [title, setTitle] = useState('');
 
 
   useEffect(() => {
     const roomRef = database.ref(`rooms/${roomId}`);
-
+    
     roomRef.on('value', room => {
-      const databaseRoom = room.val()
-      const firebaseQuestions: FirebaseQuestions = databaseRoom.questions ?? {};
+      const databaseRoom: DataBaseRoomType = room.val();
+
+      const { title, questions } = databaseRoom;
+      const firebaseQuestions = questions ?? {};
 
       const parsedQuestions = Object.entries(firebaseQuestions).map(([keys, value]) => {
         return {
@@ -52,15 +59,13 @@ export function useRoom(roomId: string) {
           isHighlighted: value.isHighlighted,
           isAnswered: value.isAnswered,
           likeCount: Object.values(value.likes ?? {}).length,
-          likeId: Object.entries(value.likes ?? {}).find(([key, like]) => like.authorId === user?.id)?.[0]
+          likeId: Object.entries(value.likes ?? {}).find(([key, like]) => like.authorId === user?.id)?.[0],
         }
-      })
-     
-      //ORDENA OS LIKES
-      // const questionsSorted = parsedQuestions.sort((a, b) => a.likeCount - b.likeCount)
-      setTitle(databaseRoom.title)
+      });
+
+      setTitle(title);
       setQuestions(parsedQuestions);
-    })
+    });
 
     return () => {
       roomRef.off('value')
